@@ -42,6 +42,8 @@ public class CoreTests {
         var bill = service.settle("A", month, policy);
         check(bill.gross.equals(new BigDecimal("1250.50")));
         check(bill.net.equals(new BigDecimal("1125.45")));
+        check(bill.toText().equals("创作者：A\n结算月份：2026-10\n总收益：1250.50元\n"
+                + "服务费：125.05元\n应结算：1125.45元\n状态：DRAFT\n"));
         fails(IllegalStateException.class, bill::markPaid);
         check(bill.status() == Status.DRAFT);
         bill.confirm();

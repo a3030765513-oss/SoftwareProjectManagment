@@ -61,6 +61,14 @@ public class Main {
             this.creatorId = creatorId; this.month = month; this.gross = gross; this.net = net;
         }
         public Status status() { return status; }
+        public String toText() {
+            return "创作者：" + creatorId + "\n"
+                    + "结算月份：" + month + "\n"
+                    + "总收益：" + gross.toPlainString() + "元\n"
+                    + "服务费：" + gross.subtract(net).toPlainString() + "元\n"
+                    + "应结算：" + net.toPlainString() + "元\n"
+                    + "状态：" + status + "\n";
+        }
         public void confirm() {
             if (status != Status.DRAFT) throw new IllegalStateException("仅草稿可以确认");
             status = Status.CONFIRMED;
@@ -117,7 +125,7 @@ public class Main {
         var bill = service.settle("C001", YearMonth.of(2026, 10), new ServiceFeePolicy(new BigDecimal("0.10")));
         bill.confirm(); bill.markPaid();
         System.out.println("素材：" + service.findMaterials("C001"));
-        System.out.println("总收益=" + bill.gross + "；应结算=" + bill.net + "；状态=" + bill.status());
+        System.out.print(bill.toText());
         System.out.println("以上为演示数据，PAID仅登记状态，没有调用真实支付。");
     }
 }
