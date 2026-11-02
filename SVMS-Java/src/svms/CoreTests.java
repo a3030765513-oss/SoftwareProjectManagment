@@ -2,6 +2,8 @@ package svms;
 
 import java.math.BigDecimal;
 import java.time.YearMonth;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import static svms.Main.*;
 
 /** 无第三方依赖的业务回归测试，失败时抛出 AssertionError。 */
@@ -19,7 +21,7 @@ public class CoreTests {
         }
         throw new AssertionError("未拒绝无效操作：" + checks);
     }
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
         var month = YearMonth.of(2026, 10);
         var service = new Service();
         var material = new Material("M1", "A", "素材", MaterialType.IMAGE);
@@ -50,6 +52,15 @@ public class CoreTests {
         fails(IllegalStateException.class, bill::confirm);
         bill.markPaid();
         check(bill.status() == Status.PAID);
+        var temp = Files.createTempDirectory("svms-export-test-");
+        var target = temp.resolve("账单.txt");
+        try {
+            bill.exportTo(target);
+            check(Files.readString(target, StandardCharsets.UTF_8).equals(bill.toText()));
+        } finally {
+            Files.deleteIfExists(target);
+            Files.deleteIfExists(temp);
+        }
         fails(IllegalStateException.class, bill::markPaid);
         fails(IllegalStateException.class, () -> service.settle("A", month, policy));
         fails(IllegalStateException.class, () -> service.addRevenue(new Revenue("R5", "A", month, BigDecimal.ONE)));

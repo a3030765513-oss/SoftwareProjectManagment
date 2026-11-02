@@ -4,6 +4,11 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.YearMonth;
 import java.util.*;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 
 /** 课程实验核心：素材、收益和结算。数据保存在内存，重启不保留。 */
 public class Main {
@@ -69,6 +74,11 @@ public class Main {
                     + "应结算：" + net.toPlainString() + "元\n"
                     + "状态：" + status + "\n";
         }
+        /** UTF-8导出；文件已存在时拒绝覆盖，由调用者选择其他路径。 */
+        public void exportTo(Path target) throws IOException {
+            Files.writeString(target, toText(), StandardCharsets.UTF_8,
+                    StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
+        }
         public void confirm() {
             if (status != Status.DRAFT) throw new IllegalStateException("仅草稿可以确认");
             status = Status.CONFIRMED;
@@ -117,7 +127,7 @@ public class Main {
         if (value == null || value.isBlank()) throw new IllegalArgumentException("编号或名称不能为空");
     }
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
         var service = new Service();
         service.addMaterial(new Material("M001", "C001", "城市风景视频", MaterialType.VIDEO));
         service.addRevenue(new Revenue("R001", "C001", YearMonth.of(2026, 10), new BigDecimal("1000.00")));
@@ -126,6 +136,11 @@ public class Main {
         bill.confirm(); bill.markPaid();
         System.out.println("素材：" + service.findMaterials("C001"));
         System.out.print(bill.toText());
+        if (args.length > 0) {
+            var target = Path.of(args[0]);
+            bill.exportTo(target);
+            System.out.println("账单已导出：" + target.toAbsolutePath());
+        }
         System.out.println("以上为演示数据，PAID仅登记状态，没有调用真实支付。");
     }
 }
