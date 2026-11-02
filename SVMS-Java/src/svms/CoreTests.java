@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.YearMonth;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.FileAlreadyExistsException;
 import static svms.Main.*;
 
 /** 无第三方依赖的业务回归测试，失败时抛出 AssertionError。 */
@@ -49,6 +50,7 @@ public class CoreTests {
         fails(IllegalStateException.class, bill::markPaid);
         check(bill.status() == Status.DRAFT);
         bill.confirm();
+        check(bill.toText().contains("状态：CONFIRMED\n"));
         fails(IllegalStateException.class, bill::confirm);
         bill.markPaid();
         check(bill.status() == Status.PAID);
@@ -57,6 +59,14 @@ public class CoreTests {
         try {
             bill.exportTo(target);
             check(Files.readString(target, StandardCharsets.UTF_8).equals(bill.toText()));
+            check(Files.readString(target, StandardCharsets.UTF_8).contains("状态：PAID\n"));
+            check(bill.status() == Status.PAID);
+            var originalBytes = Files.readAllBytes(target);
+            boolean rejected = false;
+            try { bill.exportTo(target); }
+            catch (FileAlreadyExistsException expected) { rejected = true; }
+            check(rejected);
+            check(java.util.Arrays.equals(originalBytes, Files.readAllBytes(target)));
         } finally {
             Files.deleteIfExists(target);
             Files.deleteIfExists(temp);
