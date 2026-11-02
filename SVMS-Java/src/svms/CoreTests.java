@@ -2,6 +2,9 @@ package svms;
 
 import java.math.BigDecimal;
 import java.time.YearMonth;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.FileAlreadyExistsException;
 import static svms.Main.*;
 
 /** 无第三方依赖的业务回归测试，失败时抛出 AssertionError。 */
@@ -19,7 +22,7 @@ public class CoreTests {
         }
         throw new AssertionError("未拒绝无效操作：" + checks);
     }
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
         var month = YearMonth.of(2026, 10);
         var service = new Service();
         var material = new Material("M1", "A", "素材", MaterialType.IMAGE);
@@ -42,12 +45,32 @@ public class CoreTests {
         var bill = service.settle("A", month, policy);
         check(bill.gross.equals(new BigDecimal("1250.50")));
         check(bill.net.equals(new BigDecimal("1125.45")));
+        check(bill.toText().equals("创作者：A\n结算月份：2026-10\n总收益：1250.50元\n"
+                + "服务费：125.05元\n应结算：1125.45元\n状态：DRAFT\n"));
         fails(IllegalStateException.class, bill::markPaid);
         check(bill.status() == Status.DRAFT);
         bill.confirm();
+        check(bill.toText().contains("状态：CONFIRMED\n"));
         fails(IllegalStateException.class, bill::confirm);
         bill.markPaid();
         check(bill.status() == Status.PAID);
+        var temp = Files.createTempDirectory("svms-export-test-");
+        var target = temp.resolve("账单.txt");
+        try {
+            bill.exportTo(target);
+            check(Files.readString(target, StandardCharsets.UTF_8).equals(bill.toText()));
+            check(Files.readString(target, StandardCharsets.UTF_8).contains("状态：PAID\n"));
+            check(bill.status() == Status.PAID);
+            var originalBytes = Files.readAllBytes(target);
+            boolean rejected = false;
+            try { bill.exportTo(target); }
+            catch (FileAlreadyExistsException expected) { rejected = true; }
+            check(rejected);
+            check(java.util.Arrays.equals(originalBytes, Files.readAllBytes(target)));
+        } finally {
+            Files.deleteIfExists(target);
+            Files.deleteIfExists(temp);
+        }
         fails(IllegalStateException.class, bill::markPaid);
         fails(IllegalStateException.class, () -> service.settle("A", month, policy));
         fails(IllegalStateException.class, () -> service.addRevenue(new Revenue("R5", "A", month, BigDecimal.ONE)));
